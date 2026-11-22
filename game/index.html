@@ -1,0 +1,127 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="icon" href="data:,">
+<title>Ember Court — a duel of elemental cards</title>
+<style>
+  * { box-sizing: border-box; }
+  html, body { margin: 0; height: 100%; overflow: hidden; background: #0a1f18; }
+  body { font-family: Georgia, 'Times New Roman', serif; color: #f3e9d2; }
+  #app { position: fixed; inset: 0; display: flex; flex-direction: column; }
+  #status { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+
+  .topbar { display: flex; justify-content: space-between; align-items: center;
+    padding: 6px 22px; background: #071410; border-bottom: 2px solid #d4af37; }
+  .brand { font-size: 22px; font-weight: bold; letter-spacing: 3px; color: #f5c542; }
+  .brand-glyph { font-size: 24px; }
+  .top-stats { display: flex; gap: 26px; font-size: 16px; color: #d8cba8; }
+  .top-stats b { color: #fff; font-size: 18px; }
+  .mute-hint { color: #8fae9c; font-size: 13px; align-self: center; }
+
+  .table { flex: 1; display: flex; flex-direction: column; justify-content: space-between;
+    padding: 6px 28px 8px;
+    background: radial-gradient(ellipse at 50% 30%, #17603f 0%, #0d3b2e 55%, #082419 100%); }
+
+  .opponent-row, .player-row { display: flex; gap: 24px; align-items: center; }
+  .side-info { width: 240px; flex-shrink: 0; }
+  .side-name { font-size: 21px; font-weight: bold; color: #ffe9a8; margin-bottom: 6px; }
+  .side-note { font-size: 13px; color: #a8c8b4; margin-top: 6px; }
+  .hp-wrap { display: flex; align-items: center; gap: 8px; }
+  .hp-label { font-size: 13px; color: #d8cba8; width: 34px; }
+  .hp-bar { flex: 1; height: 16px; background: #06231a; border: 1px solid #d4af37; border-radius: 8px; overflow: hidden; }
+  .hp-fill { height: 100%; transition: width .45s ease; }
+  .hp-high { background: linear-gradient(90deg, #4ade80, #22c55e); }
+  .hp-mid { background: linear-gradient(90deg, #facc15, #eab308); }
+  .hp-low { background: linear-gradient(90deg, #f87171, #dc2626); }
+  .hp-num { font-size: 15px; font-weight: bold; color: #fff; min-width: 52px; text-align: right; }
+
+  .hand { display: flex; gap: 10px; justify-content: center; flex: 1; }
+  .hand.backs .card { width: 66px; height: 92px; }
+
+  .card { position: relative; width: 104px; height: 146px; border-radius: 10px;
+    background: linear-gradient(160deg, #fffdf6 0%, #f3e9d2 70%, #e8d9b8 100%);
+    color: #2b2118; border: 2px solid #b89b5e;
+    box-shadow: 0 4px 10px rgba(0,0,0,.45);
+    display: flex; flex-direction: column; justify-content: space-between;
+    padding: 7px 8px; user-select: none; }
+  .card .card-value { font-size: 20px; font-weight: bold; color: var(--suit, #333); line-height: 1; }
+  .card .card-glyph-small { font-size: 16px; }
+  .card-corner { display: flex; flex-direction: column; align-items: flex-start; gap: 1px; }
+  .card-corner.bottom { align-items: flex-end; transform: rotate(180deg); }
+  .card-center { display: flex; flex-direction: column; align-items: center; gap: 2px; }
+  .card-glyph { font-size: 30px; line-height: 1; filter: drop-shadow(0 2px 2px rgba(0,0,0,.25)); }
+  .card-suit-name { font-size: 13px; font-weight: bold; letter-spacing: 1px; color: var(--suit, #333); text-transform: uppercase; }
+  .card-sub { font-size: 10px; line-height: 1.25; color: #6b5a3e; text-align: center; font-style: italic; min-height: 24px; }
+  .key-hint { position: absolute; top: -9px; right: -7px; width: 22px; height: 22px; border-radius: 50%;
+    background: #d4af37; color: #1a1206; font-size: 13px; font-weight: bold;
+    display: flex; align-items: center; justify-content: center; border: 1px solid #fff3c4; }
+  .card.playable { cursor: pointer; transition: transform .18s ease, box-shadow .18s ease; }
+  .card.playable:hover, .card.playable:focus-visible { transform: translateY(-16px) scale(1.04);
+    box-shadow: 0 12px 22px rgba(0,0,0,.55); outline: 2px solid #f5c542; }
+  .card.back { background: linear-gradient(150deg, #7c2d12, #431407 60%, #7c2d12);
+    border-color: #d4af37; align-items: center; justify-content: center; }
+  .card-back-inner { display: flex; flex-direction: column; align-items: center; gap: 6px; }
+  .back-glyph { font-size: 30px; }
+  .back-text { font-size: 9px; letter-spacing: 2px; color: #f5c542; font-weight: bold; }
+
+  .middle { display: flex; align-items: center; gap: 16px; }
+  .played { display: flex; align-items: center; gap: 12px; }
+  .played-slot { width: 116px; height: 152px; display: flex; align-items: center; justify-content: center; }
+  .played-slot.empty { border: 2px dashed rgba(212,175,55,.5); border-radius: 10px; color: #cbbd93;
+    font-size: 14px; font-style: italic; text-align: center; padding: 8px; }
+  .played-slot .card { animation: deal-in .35s ease; }
+  @keyframes deal-in { from { transform: translateY(-18px) scale(.85); opacity: 0; } to { transform: none; opacity: 1; } }
+  .played-tag { position: absolute; }
+  .played-slot { position: relative; }
+  .played-slot .played-tag { position: absolute; top: -22px; left: 0; right: 0; text-align: center;
+    font-size: 12px; letter-spacing: 1px; color: #ffe9a8; text-transform: uppercase; }
+  .versus { font-size: 30px; font-weight: bold; color: #f5c542; text-shadow: 0 2px 6px rgba(0,0,0,.6); }
+  .banner-col { flex: 1; display: flex; flex-direction: column; gap: 8px; align-items: stretch; }
+  .banner { font-size: 16px; line-height: 1.45; color: #fff8e1; background: rgba(7,20,16,.55);
+    border: 1px solid rgba(212,175,55,.4); border-radius: 10px; padding: 10px 14px; min-height: 56px; }
+  .duel-log { width: 290px; flex-shrink: 0; background: rgba(7,20,16,.55); border: 1px solid rgba(212,175,55,.35);
+    border-radius: 10px; padding: 10px 14px; }
+  .log-title { font-size: 13px; letter-spacing: 2px; text-transform: uppercase; color: #f5c542; margin-bottom: 6px; }
+  .duel-log ul { margin: 0; padding-left: 16px; font-size: 13px; line-height: 1.5; color: #e8ddc0; }
+  .duel-log li { margin-bottom: 4px; }
+  .rules-note { margin-top: 8px; font-size: 12px; line-height: 1.45; color: #a8c8b4; border-top: 1px solid rgba(212,175,55,.3); padding-top: 8px; }
+
+  .next-btn { align-self: flex-end; padding: 9px 18px; font-size: 16px;
+    font-family: inherit; font-weight: bold; color: #1a1206; background: #f5c542; border: 2px solid #fff3c4;
+    border-radius: 8px; cursor: pointer; box-shadow: 0 4px 14px rgba(0,0,0,.5); }
+  .next-btn:hover { background: #ffd968; }
+
+  .overlay { position: fixed; inset: 0; z-index: 10; display: flex; align-items: center; justify-content: center;
+    background: rgba(4, 12, 9, .82); }
+  .overlay-card { width: 640px; max-width: 92vw; text-align: center; background: linear-gradient(170deg, #123f2e, #0a241a);
+    border: 2px solid #d4af37; border-radius: 16px; padding: 30px 36px 26px; box-shadow: 0 20px 60px rgba(0,0,0,.7); }
+  .title-glyph { font-size: 56px; }
+  .overlay-card h1 { font-size: 44px; letter-spacing: 5px; color: #f5c542; margin: 8px 0 6px; }
+  .tagline { font-size: 18px; color: #f3e9d2; margin: 0 0 18px; font-style: italic; }
+  .howto { text-align: left; font-size: 15.5px; line-height: 1.6; color: #e8ddc0; margin: 0 auto 20px; max-width: 520px; }
+  .howto b { color: #f5c542; }
+  .big-btn { padding: 13px 30px; font-size: 19px; font-family: inherit; font-weight: bold; color: #1a1206;
+    background: linear-gradient(180deg, #ffd968, #d4af37); border: 2px solid #fff3c4; border-radius: 10px; cursor: pointer; }
+  .big-btn:hover { filter: brightness(1.08); }
+  .foot { font-size: 13px; color: #a8c8b4; margin: 14px 0 0; }
+  .final-stats { display: flex; justify-content: center; gap: 26px; margin: 4px 0 20px; }
+  .final-stats div { display: flex; flex-direction: column; gap: 4px; }
+  .final-stats span { font-size: 12.5px; color: #a8c8b4; text-transform: uppercase; letter-spacing: 1px; }
+  .final-stats b { font-size: 24px; color: #fff; }
+  .win-screen .overlay-card { border-color: #4ade80; }
+  .win-screen h1 { color: #4ade80; }
+  .loss-screen .overlay-card { border-color: #b45309; }
+  .loss-screen h1 { color: #f87171; font-size: 36px; }
+
+  body.shot-mode .card { animation: none !important; }
+  body.shot-mode .card.playable { transition: none; }
+</style>
+</head>
+<body>
+<div id="app"></div>
+<p id="status" role="status" aria-live="polite"></p>
+<script type="module" src="./src/main.js"></script>
+</body>
+</html>
